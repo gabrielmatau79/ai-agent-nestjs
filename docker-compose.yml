@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: ia-agent-redis
+    restart: always
+    ports:
+      - '6379:6379'
+    networks:
+      - agent
+
+  ia-agent:
+    build: .
+    container_name: ia-agent
+    depends_on:
+      - redis
+    environment:
+      APP_PORT: ${APP_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      VECTOR_STORE: ${VECTOR_STORE}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      AGENT_MEMORY_TYPE: ${AGENT_MEMORY_TYPE}
+      REDIS_URL: ${REDIS_URL}
+      AGENT_MEMORY_WINDOW: ${AGENT_MEMORY_WINDOW}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
+      RAG_PROVIDER: ${RAG_PROVIDER}
+      RAG_DOCS_PATH: ${RAG_DOCS_PATH}
+      VECTOR_INDEX_NAME: ${VECTOR_INDEX_NAME}
+      AGENT_PROMPT: ${AGENT_PROMPT}
+    ports:
+      - '${APP_PORT}:${APP_PORT}'
+    volumes:
+      - ./docs:/app/rag/docs
+    networks:
+      - agent
+
+networks:
+  agent:
+    driver: bridge
