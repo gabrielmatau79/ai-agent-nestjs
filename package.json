@@ -23,9 +23,9 @@
   },
   "dependencies": {
     "@langchain/community": "^0.3.45",
-    "@langchain/core": "^0.3.56",
+    "@langchain/core": "^0.3.57",
     "@langchain/ollama": "^0.2.3",
-    "@langchain/openai": "^0.5.10",
+    "@langchain/openai": "^0.5.11",
     "@langchain/pinecone": "^0.2.0",
     "@langchain/redis": "^0.1.0",
     "@nestjs/common": "^10.0.0",

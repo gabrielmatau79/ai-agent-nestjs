@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { LlmProvider } from './interfaces/llm-provider.interface'
 import { OpenAiProvider } from './providers/openai.provider'
 import { OllamaProvider } from './providers/ollama.provider'
 import { detectLanguage } from '../common/utils/lang-detect.util'
+import { ToolsService } from './tools/tools.service'
 
 /**
  * Service responsible for instantiating and delegating to a concrete LLM provider.
@@ -15,7 +16,7 @@ import { detectLanguage } from '../common/utils/lang-detect.util'
  * for visibility.
  */
 @Injectable()
-export class LlmService {
+export class LlmService implements OnModuleInit {
   /** Selected LLM provider implementation. */
   private provider: LlmProvider
   /** Agent prompt prefix loaded from configuration. */
@@ -28,7 +29,10 @@ export class LlmService {
    *
    * @param configService NestJS configuration service used to access environment variables.
    */
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly toolsService: ToolsService,
+  ) {
     // Load the agent prompt.  This provides high‑level instructions for the
     // assistant and should be kept concise.
     this.agentPrompt = this.configService.get<string>('appConfig.agentPrompt') ?? ''
@@ -53,6 +57,18 @@ export class LlmService {
       this.logger.log('OpenAiProvider selected.')
     }
     this.logger.debug(`Agent prompt loaded: "${this.agentPrompt}"`)
+  }
+
+  onModuleInit() {
+    // Initialize tools at module init and print their names
+    try {
+      const tools = this.toolsService.getTools()
+      const names = tools.map((t) => t.name).join(', ')
+      this.logger.log(`Tools initialized: ${tools.length} tool(s) available to the LLM`)
+      if (names.length > 0) this.logger.log(`Tools: ${names}`)
+    } catch (e) {
+      this.logger.error(`Failed to initialize tools on module init: ${(e as Error).message}`)
+    }
   }
 
   /**
@@ -92,7 +108,9 @@ export class LlmService {
     const prompt = this.buildPrompt(userMessage, { userLang: lang })
     this.logger.debug(`Sending prompt to provider: "${prompt}"`)
     try {
-      const result = await this.provider.generate(prompt, { ...options, userLang: lang })
+      const tools = this.toolsService.getTools()
+      this.logger.debug(`Available tools: ${tools.map((t) => t.name).join(', ')}`)
+      const result = await this.provider.generate(prompt, { ...options, userLang: lang, tools })
       this.logger.debug('LLM provider returned response.')
       return result
     } catch (error) {

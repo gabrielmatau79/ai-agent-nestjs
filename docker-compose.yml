@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   redis:
@@ -6,7 +6,7 @@ services:
     container_name: ia-agent-redis
     restart: always
     ports:
-      - '6379:6379'
+      - "6379:6379"
     networks:
       - agent
 
@@ -29,8 +29,9 @@ services:
       RAG_DOCS_PATH: ${RAG_DOCS_PATH}
       VECTOR_INDEX_NAME: ${VECTOR_INDEX_NAME}
       AGENT_PROMPT: ${AGENT_PROMPT}
+      LLM_TOOLS_CONFIG: ${LLM_TOOLS_CONFIG}
     ports:
-      - '${APP_PORT}:${APP_PORT}'
+      - "${APP_PORT}:${APP_PORT}"
     volumes:
       - ./docs:/app/rag/docs
     networks:
