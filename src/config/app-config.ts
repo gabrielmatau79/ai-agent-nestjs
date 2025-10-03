@@ -55,6 +55,26 @@ export default registerAs('appConfig', () => ({
 
   openaiModel: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
 
+  // LLM Tooling
+  /**
+   * Raw JSON string defining external HTTP tools available to the LLM.
+   * Example:
+   *   LLM_TOOLS_CONFIG='[{"name":"getvsAgent","description":"Documentation about vs-agent","endpoint":"https://raw.githubusercontent.com/2060-io/vs-agent/refs/heads/main/doc/vs-agent-api.md","method":"GET","requiresAuth":false}]'
+   */
+  toolsConfigRaw: process.env.LLM_TOOLS_CONFIG || '',
+  /**
+   * Optional auth header name for tools that require auth. Default: Authorization
+   */
+  toolsAuthHeader: process.env.LLM_TOOLS_AUTH_HEADER || 'Authorization',
+  /**
+   * Optional auth scheme for the Authorization header. Default: Bearer
+   */
+  toolsAuthScheme: process.env.LLM_TOOLS_AUTH_SCHEME || 'Bearer',
+  /**
+   * Token used when a tool config has requiresAuth=true. Example: abc123
+   */
+  toolsAuthToken: process.env.LLM_TOOLS_AUTH_TOKEN || '',
+
   // RAG (Retrieval Augmented Generation) Settings
   /**
    * RAG provider selection. "InMemoryRagProvider" (inMemory) or "langchain" (LangchainRagProvider).

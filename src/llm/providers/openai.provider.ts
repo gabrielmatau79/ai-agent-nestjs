@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { LlmProvider, OpenAiProviderConfig } from '../interfaces/llm-provider.interface'
 import { ChatOpenAI } from '@langchain/openai'
-import { HumanMessage } from '@langchain/core/messages'
+import { AIMessage, HumanMessage, ToolMessage } from '@langchain/core/messages'
+import type { DynamicTool } from '@langchain/core/tools'
 
 /**
  * Provider implementation for OpenAI using the LangChain `ChatOpenAI` class.
@@ -41,24 +42,60 @@ export class OpenAiProvider implements LlmProvider {
    * @param prompt The input text sent to the LLM.
    * @returns A promise resolving to the generated text from the model.
    */
-  async generate(prompt: string): Promise<string> {
+  async generate(prompt: string, options?: { tools?: DynamicTool[] }): Promise<string> {
     this.logger.debug(` Sending prompt to OpenAI: "${prompt}"`)
     try {
-      // Wrap the prompt as a human message; LangChain expects a sequence of
-      // messages.  Additional system or assistant messages could be added here
-      // in the future to support roles and system prompts.
+      // Base message list
       const messages = [new HumanMessage(prompt)]
-      const result = await this.chat.invoke(messages)
-      const response = result.content.toString().trim()
 
-      this.logger.debug(`✅ OpenAI response: "${response}"`)
-      return response
+      if (!options?.tools || options.tools.length === 0) {
+        const result = await this.chat.invoke(messages)
+        const response = result.content.toString().trim()
+        this.logger.debug(`✅ OpenAI response: "${response}"`)
+        return response
+      }
+
+      // Tool-calling path
+      const bound = this.chat.bindTools(options.tools)
+      this.logger.log(`OpenAI tool-calling engaged with ${options.tools.length} tool(s).`)
+      let aiMsg: AIMessage = await bound.invoke(messages)
+      // Loop while model requests tool calls
+      while (
+        Array.isArray((aiMsg as any).tool_calls) && ((aiMsg as any).tool_calls as any[]).length > 0
+      ) {
+        const toolCalls = (aiMsg as any).tool_calls as any[]
+        // Include the AI tool-call message in history
+        messages.push(aiMsg)
+        for (const call of toolCalls) {
+          const tool = options.tools.find((t) => t.name === call.name)
+          if (!tool) {
+            this.logger.warn(`Model requested unknown tool: ${call.name}`)
+            continue
+          }
+          const args = call.args?.input ?? call.args?.query ?? call.args ?? ''
+          const argString = typeof args === 'string' ? args : JSON.stringify(args)
+          const argPreview = argString.length > 200 ? `${argString.slice(0, 200)}...` : argString
+          this.logger.log(`Model requested tool: ${call.name} (id=${call.id}) with input: ${argPreview}`)
+          const result = await tool.invoke(argString)
+          const resultPreview = typeof result === 'string' ? result : JSON.stringify(result)
+          this.logger.log(
+            `Tool ${call.name} completed (id=${call.id}) with result: ${
+              resultPreview.length > 300 ? resultPreview.slice(0, 300) + '...' : resultPreview
+            }`,
+          )
+          messages.push(new ToolMessage({ content: result, tool_call_id: call.id, name: call.name }))
+        }
+        aiMsg = await bound.invoke(messages)
+      }
+
+      const finalText = aiMsg.content?.toString?.().trim?.() ?? ''
+      this.logger.debug(`✅ OpenAI final response: "${finalText}"`)
+      return finalText
     } catch (error) {
       this.logger.error(
         ' Failed to generate response from OpenAI',
         error instanceof Error ? error.stack : String(error),
       )
-      // Rethrow so callers can handle appropriately
       throw error
     }
   }
