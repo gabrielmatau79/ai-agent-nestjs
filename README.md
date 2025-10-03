@@ -125,6 +125,33 @@ To use a local language model with the `ollama` provider (instead of OpenAI), yo
 
 Follow the instructions in the [Ollama Installation Guide](./docs/ollama-installation-guide.md) to install it on **Ubuntu** or **macOS**, including how to download models like `llama3` or `phi3`.
 
+## 🧰 LLM Tools
+
+The OpenAI provider supports tool-calling. You can expose two types of tools to the model:
+
+- External HTTP tools configured via `LLM_TOOLS_CONFIG` (JSON array)
+- A built-in utility tool `getCurrentTime` returning the current ISO timestamp
+
+Example configuration:
+
+```env
+LLM_TOOLS_CONFIG='[
+  {"name":"getLocation","description":"Only answer zip code information by calling this tool. Do not use your own knowledge.","endpoint":"https://api.zippopotam.us/us/{query}","method":"GET","requiresAuth": false}
+]'
+
+# Optional auth for tools that set requiresAuth=true
+LLM_TOOLS_AUTH_TOKEN=YOUR_TOKEN
+LLM_TOOLS_AUTH_HEADER=Authorization
+LLM_TOOLS_AUTH_SCHEME=Bearer
+```
+
+Notes:
+
+- Tool input is a plain string. If the endpoint contains `{query}`, the input replaces it (URL encoded). Otherwise, for GET requests, `?q=<input>` is appended. For non-GET, `{ query: input }` is sent as JSON body.
+
+- When `requiresAuth` is `true`, the request includes `Authorization: Bearer <token>` (configurable via the env vars above).
+- Ollama provider currently ignores tools.
+
 ## 📡 API Usage
 
 Start the app and navigate to:

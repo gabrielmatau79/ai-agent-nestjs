@@ -42,12 +42,15 @@ export class OllamaProvider implements LlmProvider {
    * @param prompt The input text sent to the LLM.
    * @returns A promise resolving to the generated text from the model.
    */
-  async generate(prompt: string, options?: { model?: string }): Promise<string> {
+  async generate(prompt: string, options?: { model?: string; tools?: any[] }): Promise<string> {
     const modelName = options?.model ?? undefined
     const effectiveModel = modelName ?? this.chat.model
     this.logger.debug(` Sending prompt to Ollama model "${effectiveModel}" at "${this.chat.baseUrl}"`)
     this.logger.verbose(` Prompt: ${prompt}`)
     try {
+      if (options?.tools && options.tools.length > 0) {
+        this.logger.warn('Tools were provided, but tool-calling is not enabled for Ollama provider yet.')
+      }
       // If an override model is provided at call time, create a temporary chat
       // instance to use that model.  Otherwise reuse the default instance.
       const messages = [new HumanMessage(prompt)]
