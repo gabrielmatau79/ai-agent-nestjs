@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import axios, { AxiosRequestConfig } from 'axios'
 import { DynamicTool } from '@langchain/core/tools'
+import { RagService } from '../../rag/rag.service'
+import { createRagRetrieverTool } from './rag-retriever.tool'
 import { LlmToolConfig, ToolsAuthConfig } from './types'
 
 /**
@@ -17,7 +19,10 @@ export class ToolsService {
   private readonly logger = new Logger(ToolsService.name)
   private cachedTools: DynamicTool[] | null = null
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly ragService: RagService,
+  ) {}
 
   /**
    * Returns the list of tools configured for the current environment.
@@ -47,7 +52,8 @@ export class ToolsService {
       this.logger.debug('No LLM_TOOLS_CONFIG provided; skipping external tools.')
     }
 
-    // 2) Add a small built-in utility tool (second tool type)
+    // 2) Add static tools (RAG + utilities)
+    tools.push(createRagRetrieverTool(this.ragService))
     tools.push(
       new DynamicTool({
         name: 'getCurrentTime',
