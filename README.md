@@ -105,19 +105,30 @@ OPENAI_API_KEY=sk-xxxxx
 
 ## 🐳 Run with Docker Compose
 
-Create a `.env` file with your settings, then Multiple configuration presets are available in the `docs/env-examples` directory:
+Use an env preset before starting Docker Compose:
 
-| File                   | Description                              |
-| ---------------------- | ---------------------------------------- |
-| `.env.inmemory-ollama` | In-memory memory & RAG with Ollama LLM   |
-| `.env.redis-openai`    | Redis memory & LangChain RAG with OpenAI |
+| File                     | Description                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `.env.inmemory-ollama`   | In-memory memory & RAG with Ollama LLM                                           |
+| `.env.redis-openai`      | Redis memory & LangChain RAG with OpenAI                                         |
+| `.env.docker.openai.mcp` | Docker-ready OpenAI + Redis + 3 MCP servers (`localAgent`, `math`, `filesystem`) |
 
 Run with a specific setup:
 
 ```bash
-cp env/.env.redis-openai .env
+cp .env.docker.openai.mcp .env
+# set your real key
+# OPENAI_API_KEY=sk-...
 docker-compose up --build
 ```
+
+The MCP preset includes:
+
+- `localAgent`: this repository local MCP server (`node dist/mcp-server/index.js`)
+- `math`: `@modelcontextprotocol/server-math`
+- `filesystem`: `@modelcontextprotocol/server-filesystem` pointing to `/app/docs`
+
+Note: `math` and `filesystem` use `npx -y ...`, so the container needs outbound internet access on first run.
 
 ## 🧠 Local LLM Setup with Ollama
 
@@ -151,6 +162,48 @@ Notes:
 
 - When `requiresAuth` is `true`, the request includes `Authorization: Bearer <token>` (configurable via the env vars above).
 - Ollama provider currently ignores tools.
+
+## 🔌 MCP Integration
+
+This project now supports MCP tools from remote servers and also exposes local MCP tools over stdio.
+
+### MCP Client env vars
+
+| Variable                          | Description                                                                   | Default         |
+| --------------------------------- | ----------------------------------------------------------------------------- | --------------- |
+| `MCP_SERVERS`                     | JSON object for MCP servers (`stdio`, `sse`, `streamable_http`)               | `""`            |
+| `MCP_TOOL_TIMEOUT`                | Tool timeout in milliseconds                                                  | `20000`         |
+| `MCP_THROW_ON_LOAD_ERROR`         | Throw if tool loading fails                                                   | `true`          |
+| `MCP_USE_STANDARD_CONTENT_BLOCKS` | Normalize responses to standard content blocks                                | `true`          |
+| `MCP_AUTH_TOKEN`                  | Default bearer token for HTTP/SSE MCP servers (if server headers are not set) | `""`            |
+| `MCP_AUTH_HEADER`                 | Header used with `MCP_AUTH_TOKEN`                                             | `Authorization` |
+
+Example:
+
+```env
+MCP_SERVERS='{
+  "local": {
+    "transport": "stdio",
+    "command": "node",
+    "args": ["dist/mcp-server/index.js"],
+    "optional": true
+  }
+}'
+MCP_TOOL_TIMEOUT=20000
+```
+
+Docker/OpenAI preset used by this repository:
+
+```env
+MCP_SERVERS={"localAgent":{"transport":"stdio","command":"node","args":["dist/mcp-server/index.js"],"optional":true},"math":{"transport":"stdio","command":"npx","args":["-y","@modelcontextprotocol/server-math"],"optional":true},"filesystem":{"transport":"stdio","command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","/app/docs"],"optional":true}}
+```
+
+### Local MCP server scripts
+
+```bash
+npm run build:mcp-server
+npm run start:mcp-server
+```
 
 ## 📡 API Usage
 

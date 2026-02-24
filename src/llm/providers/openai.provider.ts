@@ -60,9 +60,7 @@ export class OpenAiProvider implements LlmProvider {
       this.logger.log(`OpenAI tool-calling engaged with ${options.tools.length} tool(s).`)
       let aiMsg: AIMessage = await bound.invoke(messages)
       // Loop while model requests tool calls
-      while (
-        Array.isArray((aiMsg as any).tool_calls) && ((aiMsg as any).tool_calls as any[]).length > 0
-      ) {
+      while (Array.isArray((aiMsg as any).tool_calls) && ((aiMsg as any).tool_calls as any[]).length > 0) {
         const toolCalls = (aiMsg as any).tool_calls as any[]
         // Include the AI tool-call message in history
         messages.push(aiMsg)
