@@ -75,6 +75,34 @@ export default registerAs('appConfig', () => ({
    */
   toolsAuthToken: process.env.LLM_TOOLS_AUTH_TOKEN || '',
 
+  // MCP (Model Context Protocol) Settings
+  /**
+   * JSON string with MCP server definitions consumed by MultiServerMCPClient.
+   * Example:
+   *  MCP_SERVERS='{"filesystem":{"transport":"stdio","command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","."]}}'
+   */
+  mcpServersRaw: process.env.MCP_SERVERS || '',
+  /**
+   * Timeout in milliseconds for MCP tool operations.
+   * Default: 20000
+   */
+  mcpToolTimeout: parseInt(process.env.MCP_TOOL_TIMEOUT || '20000', 10),
+  /**
+   * If true, MCP client throws when a server fails to load.
+   * Default: true
+   */
+  mcpThrowOnLoadError: process.env.MCP_THROW_ON_LOAD_ERROR !== 'false',
+  /**
+   * If true, MCP responses are normalized into LangChain standard blocks.
+   * Default: true
+   */
+  mcpUseStandardContentBlocks: process.env.MCP_USE_STANDARD_CONTENT_BLOCKS !== 'false',
+  /**
+   * Default token/header used for MCP HTTP/SSE servers when configured.
+   */
+  mcpAuthToken: process.env.MCP_AUTH_TOKEN || '',
+  mcpAuthHeader: process.env.MCP_AUTH_HEADER || 'Authorization',
+
   // RAG (Retrieval Augmented Generation) Settings
   /**
    * RAG provider selection. "InMemoryRagProvider" (inMemory) or "langchain" (LangchainRagProvider).

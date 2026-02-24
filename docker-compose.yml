@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   redis:
     image: redis/redis-stack-server:latest
@@ -15,25 +13,14 @@ services:
     container_name: ia-agent
     depends_on:
       - redis
+    env_file:
+      - ./.env.docker.openai.mcp
     environment:
-      APP_PORT: ${APP_PORT}
-      LOG_LEVEL: ${LOG_LEVEL}
-      VECTOR_STORE: ${VECTOR_STORE}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      AGENT_MEMORY_TYPE: ${AGENT_MEMORY_TYPE}
-      REDIS_URL: ${REDIS_URL}
-      AGENT_MEMORY_WINDOW: ${AGENT_MEMORY_WINDOW}
-      LLM_PROVIDER: ${LLM_PROVIDER}
-      OLLAMA_ENDPOINT: ${OLLAMA_ENDPOINT}
-      RAG_PROVIDER: ${RAG_PROVIDER}
-      RAG_DOCS_PATH: ${RAG_DOCS_PATH}
-      VECTOR_INDEX_NAME: ${VECTOR_INDEX_NAME}
-      AGENT_PROMPT: ${AGENT_PROMPT}
-      LLM_TOOLS_CONFIG: ${LLM_TOOLS_CONFIG}
+      REDIS_URL: redis://redis:6379
     ports:
-      - "${APP_PORT}:${APP_PORT}"
+      - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     volumes:
-      - ./docs:/app/rag/docs
+      - ./docs:/app/docs
     networks:
       - agent
 

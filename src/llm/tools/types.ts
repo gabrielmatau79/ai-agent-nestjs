@@ -13,4 +13,3 @@ export interface ToolsAuthConfig {
   scheme?: string // Default: Bearer
   token?: string // Required if any tool requiresAuth = true
 }
-

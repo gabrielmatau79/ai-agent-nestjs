@@ -1,10 +1,12 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { LlmProvider } from './interfaces/llm-provider.interface'
 import { OpenAiProvider } from './providers/openai.provider'
 import { OllamaProvider } from './providers/ollama.provider'
 import { detectLanguage } from '../common/utils/lang-detect.util'
 import { ToolsService } from './tools/tools.service'
+import { McpClientService } from '../mcp/mcp-client.service'
+import type { StructuredToolInterface } from '@langchain/core/tools'
 
 /**
  * Service responsible for instantiating and delegating to a concrete LLM provider.
@@ -16,13 +18,14 @@ import { ToolsService } from './tools/tools.service'
  * for visibility.
  */
 @Injectable()
-export class LlmService implements OnModuleInit {
+export class LlmService implements OnModuleInit, OnModuleDestroy {
   /** Selected LLM provider implementation. */
   private provider: LlmProvider
   /** Agent prompt prefix loaded from configuration. */
   private readonly agentPrompt: string
   /** Internal logger instance. */
   private readonly logger = new Logger(LlmService.name)
+  private combinedTools: StructuredToolInterface[] = []
 
   /**
    * Constructs the LLM service.
@@ -32,6 +35,7 @@ export class LlmService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly toolsService: ToolsService,
+    private readonly mcpClientService: McpClientService,
   ) {
     // Load the agent prompt.  This provides high‑level instructions for the
     // assistant and should be kept concise.
@@ -59,16 +63,26 @@ export class LlmService implements OnModuleInit {
     this.logger.debug(`Agent prompt loaded: "${this.agentPrompt}"`)
   }
 
-  onModuleInit() {
+  async onModuleInit(): Promise<void> {
     // Initialize tools at module init and print their names
     try {
-      const tools = this.toolsService.getTools()
+      const internalTools = this.toolsService.getTools() as StructuredToolInterface[]
+      const mcpTools = await this.mcpClientService.loadTools().catch((error: unknown) => {
+        this.logger.error(`Failed to load MCP tools: ${(error as Error).message}`)
+        return []
+      })
+      const tools = [...internalTools, ...mcpTools]
+      this.combinedTools = tools
       const names = tools.map((t) => t.name).join(', ')
       this.logger.log(`Tools initialized: ${tools.length} tool(s) available to the LLM`)
       if (names.length > 0) this.logger.log(`Tools: ${names}`)
     } catch (e) {
       this.logger.error(`Failed to initialize tools on module init: ${(e as Error).message}`)
     }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.mcpClientService.close()
   }
 
   /**
@@ -108,7 +122,12 @@ export class LlmService implements OnModuleInit {
     const prompt = this.buildPrompt(userMessage, { userLang: lang })
     this.logger.debug(`Sending prompt to provider: "${prompt}"`)
     try {
-      const tools = this.toolsService.getTools()
+      const tools =
+        this.combinedTools.length > 0
+          ? this.combinedTools
+          : ((this.toolsService.getTools() as StructuredToolInterface[]).concat(
+              await this.mcpClientService.loadTools().catch(() => []),
+            ) as StructuredToolInterface[])
       this.logger.debug(`Available tools: ${tools.map((t) => t.name).join(', ')}`)
       const result = await this.provider.generate(prompt, { ...options, userLang: lang, tools })
       this.logger.debug('LLM provider returned response.')
